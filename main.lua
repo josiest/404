@@ -19,7 +19,8 @@ link = {
 }
 for i = 1, #link.text do
     local c = link.text:sub(i, i)
-    link.letters[i] = Fragment:new(c)
+    local f = Fragment:new(c)
+    link.letters[i] = f
 end
 
 function love.load()
@@ -44,22 +45,28 @@ function love.load()
 
     -- find the sum of raw width of the letters
     -- to find the spacing between them
-    --frag_width = 0
-    --for i = 0, #link.letters do
-    --    frag_width = frag_width + link.font:getWidth(link.letters[i].char)
-    --end
-    --buffer = (link.width-fragwidth)/(#link.letters-1)
+    frag_width = 0
+    for i = 1, #link.letters do
+        frag_width = frag_width + link.font:getWidth(link.letters[i].char)
+    end
+    buffer = (link.width-frag_width)/(#link.letters-1)
 
-    --local x = link.x
-    --for i = 0, #link.letters do
-    --    link.letters[i].x = x
-    --    x = x + buffer + link.font:getWidth(link.letters[i].char)
-    --    link.letters[i] = link.y + (link.height-link.font:getHeight(link.letters[i]
-    --end
+    -- assign a position to each letter
+    local x = link.x
+    for i = 1, #link.letters do
+        link.letters[i].x = x
+
+        -- increment the letter x-position
+        x = x + buffer + link.font:getWidth(link.letters[i].char)
+
+        -- find height between top of line and top of letter
+        local gap = link.height-link.font:getHeight(link.letters[i])
+        link.letters[i].y = link.y + gap
+    end
 end
 
 function love.draw()
-    link.print()
+    link.draw()
 end
 
 function love.mousepressed(x, y, button, istouch)
@@ -76,10 +83,12 @@ function link.hovering()
            and y <= link.y+link.height
 end
 
-function link.print()
+function link.draw()
     -- draw text
     love.graphics.setColor(link.color)
-    love.graphics.print(link.text, link.x, link.y)
+    for i, l in ipairs(link.letters) do
+        love.graphics.print(l.char, l.x, l.y)
+    end
 
     -- create underline for text to look like hyperlink
     -- specifically when mouse hovers over text
