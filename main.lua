@@ -8,7 +8,7 @@ function Fragment:new(ch)
     fragment.ul = {x=0, y=0}
 
     fragment.vel = {x=0, y=0}
-    fragment.q = 2  -- "charge" for calculating acceleration
+    fragment.q = 5  -- "charge" for calculating acceleration
 
     -- so the letter knows where to return to when it breaks
     fragment.home = {x=0, y=0}
@@ -28,10 +28,14 @@ for i = 1, #link.text do
     link.letters[i] = f
 end
 
+-- Parameters
 mq = 10     -- mouse "charge" for calculating acceleration
-ke = 1      -- "Coulomb's" constant
-hc = 0.0025 -- "home" constant - multiplier on force pushing letters home
+ke = 5      -- "Coulomb's" constant
+hc = 0.003  -- "home" constant - multiplier on force pushing letters home
 uk = 0.002  -- "friction" coefficient
+
+snap_radius = 3 -- pixel radius for the letter to snap back in place
+vel_tol = 0.1  -- velocity tolerance for the letter to stop moving
 
 function love.load()
     -- set background to be white
@@ -84,17 +88,29 @@ function love.load()
 end
 
 function love.mousepressed(x, y, button, istouch)
-    if button == 1 and link.hovering() and not link.is_broken then
+    if button == 1 and link.moused_over() and not link.is_broken then
         link.toggle_break()
     end
 end
 
-function link.hovering()
+function link.moused_over()
     local x = love.mouse.getX()
     local y = love.mouse.getY()
 
-    return x >= link.x and x <= link.x+link.width and y >= link.y
-           and y <= link.y+link.height
+    local x_in_range = x >= link.x and x <= link.x+link.width
+    local y_in_range = y >= link.y and y <= link.y+link.height
+
+    return x_in_range and y_in_range
+end
+
+function link.highlight()
+    love.graphics.setLineWidth(4)
+
+    local x0 = link.x
+    local x1 = link.x + link.width
+    local y = link.y + link.height
+
+    love.graphics.line(x0, y, x1, y)
 end
 
 function love.draw()
@@ -106,11 +122,8 @@ function love.draw()
 
     -- create underline for text to look like hyperlink
     -- specifically when mouse hovers over text
-    if link.hovering() and not link.is_broken then
-        love.graphics.setLineWidth(4)
-        love.graphics.line(link.x, link.y+link.height,
-                           link.x+link.width, link.y+link.height)
-
+    if link.moused_over() and not link.is_broken then
+        link.highlight()
         -- change cursor from arrow to hand when cursor enters text area
         love.mouse.setCursor(love.mouse.getSystemCursor("hand"))
     else
@@ -118,6 +131,7 @@ function love.draw()
         love.mouse.setCursor(love.mouse.getSystemCursor("arrow"))
     end
 
+    local all_stoped = true
     -- move the characters away from the cursor if the link is broken
     if link.is_broken then
         for i, l in ipairs(link.letters) do
@@ -163,18 +177,35 @@ function love.draw()
             l.vel.x = l.vel.x - uk*l.vel.x
             l.vel.y = l.vel.y - uk*l.vel.y
 
+            -- reset the velocity to zero if within the tolerable
+            -- range to home for distance and velocity
+            if mag(l.vel) < vel_tol then --and hdist < snap_radius then
+                l.vel.x = 0
+                l.vel.y = 0
+            else
+                all_stopped = false
+            end
+
             -- move the characters, but clamp them to the boundaries
             local new_cx = l.center.x + l.vel.x
             if new_cx >= 0 and new_cx <= width then
                 l.ul.x = l.ul.x + l.vel.x
                 l.center.x = new_cx
+            else
+                l.vel.x = 0
             end
             local new_cy = l.center.y + l.vel.y
             if new_cy >= 0 and new_cy <= height then
                 l.ul.y = l.ul.y +l.vel.y
                 l.center.y = new_cy
+            else
+                l.vel.y = 0
             end
         end
+    end
+    if all_stopped and link.is_broken then
+        print("toggling break")
+        link.toggle_break()
     end
 end
 
