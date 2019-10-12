@@ -6,8 +6,13 @@ function Fragment:new(ch)
     fragment.char = ch
     fragment.center = {x=0, y=0}
     fragment.ul = {x=0, y=0}
+
     fragment.vel = {x=0, y=0}
-    fragment.q = 1  -- "charge" for calculating acceleration
+    fragment.q = 2  -- "charge" for calculating acceleration
+
+    -- so the letter knows where to return to when it breaks
+    fragment.home = {x=0, y=0}
+
     return fragment
 end
 
@@ -23,8 +28,10 @@ for i = 1, #link.text do
     link.letters[i] = f
 end
 
-mq = 5 -- mouse "charge" for calculating acceleration
-ke = 1 -- "Coulomb's" constant
+mq = 10     -- mouse "charge" for calculating acceleration
+ke = 1      -- "Coulomb's" constant
+hc = 0.0025 -- "home" constant - multiplier on force pushing letters home
+uk = 0.002  -- "friction" coefficient
 
 function love.load()
     -- set background to be white
@@ -63,6 +70,7 @@ function love.load()
         -- set the center and upper-left corner x positions
         l.ul.x = x
         l.center.x = x + w/2
+        l.home.x = l.center.x
 
         -- increment the letter x-position
         x = x + buffer + w
@@ -71,11 +79,8 @@ function love.load()
         local gap = link.height-h
         l.ul.y = link.y + gap
         l.center.y = l.ul.y + h/2
+        l.home.y = l.center.y
     end
-end
-
-function love.draw()
-    link.draw()
 end
 
 function love.mousepressed(x, y, button, istouch)
@@ -92,7 +97,7 @@ function link.hovering()
            and y <= link.y+link.height
 end
 
-function link.draw()
+function love.draw()
     -- draw text
     love.graphics.setColor(link.color)
     for i, l in ipairs(link.letters) do
@@ -132,9 +137,31 @@ function link.draw()
             dv.x = dv.x/dist
             dv.y = dv.y/dist
 
-            -- accelerate the characters
+            -- "force" pushing the letter back home
+            local dh = {
+                x = l.home.x - l.center.x,
+                y = l.home.y - l.center.y
+            }
+            local hdist = mag(dh)
+            if hdist > 0 then
+                dh.x = dh.x/hdist
+                dh.y = dh.y/hdist
+            else
+                dh.x = 0
+                dh.y = 0
+            end
+
+            -- accelerate the characters away from the mouse (Coulomb's Law)
             l.vel.x = l.vel.x + dv.x * ke*l.q*mq/(dist*dist)
             l.vel.y = l.vel.y + dv.y * ke*l.q*mq/(dist*dist)
+
+            -- accelerate the characters toward home (Constant Force)
+            l.vel.x = l.vel.x + hc*dh.x
+            l.vel.y = l.vel.y + hc*dh.y
+
+            -- apply "friction"
+            l.vel.x = l.vel.x - uk*l.vel.x
+            l.vel.y = l.vel.y - uk*l.vel.y
 
             -- move the characters, but clamp them to the boundaries
             local new_cx = l.center.x + l.vel.x
