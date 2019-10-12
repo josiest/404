@@ -1,13 +1,11 @@
-Fragment = {
-    char = "a", 
-    pos = {0, 0},
-}
 
+Fragment = {}
 function Fragment:new(ch)
     local fragment = {}
     setmetatable(fragment, self)
     self.__index = self
     fragment.char = ch
+    fragment.pos = {x=0, y=0}
     return fragment
 end
 
@@ -53,15 +51,15 @@ function love.load()
 
     -- assign a position to each letter
     local x = link.x
-    for i = 1, #link.letters do
-        link.letters[i].x = x
+    for i, l in ipairs(link.letters) do
+        l.pos.x = x
 
         -- increment the letter x-position
-        x = x + buffer + link.font:getWidth(link.letters[i].char)
+        x = x + buffer + link.font:getWidth(l.char)
 
         -- find height between top of line and top of letter
-        local gap = link.height-link.font:getHeight(link.letters[i])
-        link.letters[i].y = link.y + gap
+        local gap = link.height-link.font:getHeight(l.char)
+        l.pos.y = link.y + gap
     end
 end
 
@@ -87,7 +85,7 @@ function link.draw()
     -- draw text
     love.graphics.setColor(link.color)
     for i, l in ipairs(link.letters) do
-        love.graphics.print(l.char, l.x, l.y)
+        love.graphics.print(l.char, l.pos.x, l.pos.y)
     end
 
     -- create underline for text to look like hyperlink
