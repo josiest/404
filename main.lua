@@ -76,15 +76,6 @@ end
 
 function love.draw()
     link.draw()
-
-    if link.is_broken then
-        for _, l in ipairs(link.letters) do
-            l.ul.x = l.ul.x + l.vel.x
-            l.ul.y = l.ul.y + l.vel.y
-            l.center.x = l.center.x + l.vel.x
-            l.center.y = l.center.y + l.vel.y
-        end
-    end
 end
 
 function love.mousepressed(x, y, button, istouch)
@@ -128,10 +119,14 @@ function link.draw()
 
             -- difference vector between mouse click and character
             local dv = {
-                x = love.mouse.getX() - l.center.x,
-                y = love.mouse.getY() - l.center.y
+                x = -(love.mouse.getX() - l.center.x),
+                y = -(love.mouse.getY() - l.center.y)
             }
             local dist = mag(dv)
+            -- clamp dist so it doesn't get too small
+            if dist < 0.01 then
+                dist = 0.01
+            end
 
             -- normalize difference vector
             dv.x = dv.x/dist
@@ -141,27 +136,16 @@ function link.draw()
             l.vel.x = l.vel.x + dv.x * ke*l.q*mq/(dist*dist)
             l.vel.y = l.vel.y + dv.y * ke*l.q*mq/(dist*dist)
 
-            -- move the characters
-            l.ul.x = l.ul.x + l.vel.x
-            l.ul.y = l.ul.y + l.vel.y
-            l.center.x = l.center.x + l.vel.x
-            l.center.y = l.center.y + l.vel.y
-
-            -- clamp the characters
-            if l.center.x < 0 then
-                l.center.x = 0
-                l.ul.x = -link.font:getWidth(l.char)/2
-            end if l.center.x > width then
-                l.center.x = width
-                l.ul.x = width-link.font:getWidth(l.char)/2
+            -- move the characters, but clamp them to the boundaries
+            local new_cx = l.center.x + l.vel.x
+            if new_cx >= 0 and new_cx <= width then
+                l.ul.x = l.ul.x + l.vel.x
+                l.center.x = new_cx
             end
-
-            if l.center.y < 0 then
-                l.center.y = 0
-                l.ul.y = -link.font:getHeight(l.char)/2
-            end if l.center.y > height then
-                l.center.y = height
-                l.ul.y = height-link.font:getHeight(l.char)/2
+            local new_cy = l.center.y + l.vel.y
+            if new_cy >= 0 and new_cy <= height then
+                l.ul.y = l.ul.y +l.vel.y
+                l.center.y = new_cy
             end
         end
     end
@@ -178,5 +162,5 @@ function link.toggle_break()
 end
 
 function mag(vec)
-    return math.sqrt(vec.x*vec.x + vec.y+vec.y)
+    return math.sqrt(vec.x*vec.x + vec.y*vec.y)
 end
